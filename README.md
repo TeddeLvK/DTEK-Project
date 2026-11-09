@@ -34,25 +34,25 @@ Prerequisites
 
 You need a RISC-V cross-compiler toolchain installed on your system to build the binaries.Bash
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   sudo apt install gcc-riscv64-unknown-elf   `
+`   sudo apt install gcc-riscv64-unknown-elf   `
 
 Building the Project
 --------------------
 
 Run the following command in the project directory to compile the source files and generate the executable ELF file:Bash
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   make   `
+`   make   `
 
 To clean the build directory of compiled object files and binaries:Bash
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   make clean   `
+`   make clean   `
 
 Flashing to the Board
 ---------------------
 
 Depending on your specific DTEK-V programmer setup (e.g., OpenOCD or a custom serial bootloader), flash the compiled tetris.elf or extract the binary format to load onto the board.Bash
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   riscv32-unknown-elf-objcopy -O binary tetris.elf tetris.bin   `
+`   riscv32-unknown-elf-objcopy -O binary tetris.elf tetris.bin   `
 
 Controls
 --------
