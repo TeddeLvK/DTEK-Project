@@ -46,8 +46,6 @@ How to Build and Run
 Controls
 --------
 
-**Action** = Key
-
 **Start Game** = S (At the welcome menu)
 
 **Move Left** = Left Arrow
