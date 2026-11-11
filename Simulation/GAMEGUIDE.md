@@ -46,9 +46,7 @@ How to Build and Run
 Controls
 --------
 
-Action
-
-Key
+**Action** = Key
 
 **Start Game** = S (At the welcome menu)
 
