@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -O2 -Wall
 LDFLAGS =
 
-OBJS = simulator_main.o tetris.o menu.o
+OBJS = simulator_main.o tetris.o menu.o sound.o
 
 all: tetris_sim
 

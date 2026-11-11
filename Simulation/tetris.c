@@ -119,8 +119,8 @@ void clear_lines(void) {
     }
 }
 
-void tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft_drop) {
-    if(game_over) return;
+int tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft_drop) {
+    if(game_over) return 0;
 
     if(hold && can_hold) {
         if(held_piece == -1) {
@@ -140,7 +140,7 @@ void tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft
         if (check_collision(current_x, current_y, current_rotation)) {
             game_over = 1;
         }
-        return;
+        return 0;
     }
 
     int next_r = current_rotation;
@@ -178,6 +178,7 @@ void tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft
         if (check_collision(current_x, current_y, current_rotation)) {
             game_over = 1;
         }
+        return 1; // Block placed
     } 
     else if(dy != 0) {
         if(!check_collision(current_x, current_y + 1, current_rotation)) {
@@ -199,8 +200,10 @@ void tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft
             if (check_collision(current_x, current_y, current_rotation)) {
                 game_over = 1;
             }
+            return 1; // Block placed
         }
     }
+    return 0;
 }
 
 void tetris_draw(void) {
@@ -215,6 +218,22 @@ void tetris_draw(void) {
     
     if (!game_over) {
         uint16_t shape = pieces[current_piece][current_rotation];
+        
+        int ghost_y = current_y;
+        while(!check_collision(current_x, ghost_y + 1, current_rotation)) {
+            ghost_y++;
+        }
+        
+        for(y = 0; y < 4; y++) {
+            for(x = 0; x < 4; x++) {
+                if(shape & (1 << (15 - (y * 4 + x)))) {
+                    if (ghost_y + y >= 0) {
+                        display_draw_pixel((current_x + x) * 2, ghost_y + y, 2);
+                    }
+                }
+            }
+        }
+        
         for(y = 0; y < 4; y++) {
             for(x = 0; x < 4; x++) {
                 if(shape & (1 << (15 - (y * 4 + x)))) {

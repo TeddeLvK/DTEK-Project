@@ -7,11 +7,13 @@
 #include <stdint.h>
 #include "tetris.h"
 #include "menu.h"
+#include "sound.h"
 
 struct termios orig_termios;
 uint8_t sim_display[BOARD_H][BOARD_W * 2];
 
 int is_paused = 0;
+int game_over_sound_played = 0;
 
 void save_highscore() {
     FILE *f = fopen("highscore.txt", "w");
@@ -19,6 +21,7 @@ void save_highscore() {
         fprintf(f, "%llu\n", high_score);
         fclose(f);
     }
+    sound_stop();
 }
 
 void load_highscore() {
@@ -39,6 +42,7 @@ void load_highscore() {
 void disable_raw_mode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
     printf("\e[?25h");
+    sound_stop();
 }
 
 void enable_raw_mode() {
@@ -95,8 +99,10 @@ void display_update(void) {
             printf("  Press Q to Quit   ");
         } else {
             for(int x = 0; x < BOARD_W; x++) {
-                if(sim_display[y][x * 2]) {
+                if(sim_display[y][x * 2] == 1) {
                     printf("[]");
+                } else if(sim_display[y][x * 2] == 2) {
+                    printf("::");
                 } else {
                     printf("  ");
                 }
@@ -155,6 +161,7 @@ int main() {
     tetris_init();
     
     show_start_menu();
+    sound_start();
 
     long long last_drop = get_time_ms();
     long long lock_timer = 0; 
@@ -168,7 +175,10 @@ int main() {
         int dx = 0, dy = 0, rot = 0, hard_drop = 0, hold = 0, soft_drop = 0;
         
         if (read(STDIN_FILENO, &c, 1) == 1) {
-            if (c == 'q' || c == 'Q') break;
+            if (c == 'q' || c == 'Q') {
+                sound_stop();
+                break;
+            }
             
             if (game_over) {
                 if (c == 'r' || c == 'R') {
@@ -177,11 +187,16 @@ int main() {
                     lock_timer = 0;
                     current_lock_limit = 500;
                     is_paused = 0;
+                    game_over_sound_played = 0;
+                    sound_start();
                 }
             } else {
                 if (c == 'p' || c == 'P') {
                     is_paused = !is_paused;
-                    if (!is_paused) {
+                    if (is_paused) {
+                        sound_pause();
+                    } else {
+                        sound_resume();
                         last_drop = get_time_ms();
                         if (lock_timer != 0) {
                             lock_timer = get_time_ms();
@@ -209,6 +224,14 @@ int main() {
                         }
                     }
                 }
+            }
+        }
+
+        if (game_over) {
+            if (!game_over_sound_played) {
+                sound_stop();                  // Stop background track
+                sound_play_game_over();        // Play GameOver.mp3 once
+                game_over_sound_played = 1;
             }
         }
 
@@ -248,7 +271,10 @@ int main() {
             int old_rot = current_rotation;
             int old_piece = current_piece; 
             
-            tetris_update(dx, dy, rot, hard_drop, hold, soft_drop);
+            int placed = tetris_update(dx, dy, rot, hard_drop, hold, soft_drop);
+            if (placed) {
+                sound_play_block_placed();
+            }
             
             if (hard_drop || current_piece != old_piece) {
                 last_drop = now;
