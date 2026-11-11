@@ -50,45 +50,26 @@ Action
 
 Key
 
-**Start Game**
+**Start Game** = S (At the welcome menu)
 
-S (At the welcome menu)
+**Move Left** = Left Arrow
 
-**Move Left**
+**Move Right** = Right Arrow
 
-Left Arrow
+**Rotate** = Up Arrow
 
-**Move Right**
+**Soft Drop** = Down Arrow
 
-Right Arrow
+**Hard Drop** = Spacebar
 
-**Rotate**
+**Hold Piece** = Z
 
-Up Arrow
+**Pause Game** = P
 
-**Soft Drop**
+**Restart Game** = R (When game over)
 
-Down Arrow
+**Quit Game** = Q
 
-**Hard Drop**
-
-Spacebar
-
-**Hold Piece**
-
-Z
-
-**Pause Game**
-
-P
-
-**Restart Game**
-
-R (When game over)
-
-**Quit Game**
-
-Q
 
 Troubleshooting
 ---------------
