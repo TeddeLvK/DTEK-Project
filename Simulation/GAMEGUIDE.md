@@ -58,7 +58,7 @@ Controls
 
 **Hard Drop** = Spacebar
 
-**Hold Piece** = Z
+**Hold Piece** = C
 
 **Pause Game** = P
 

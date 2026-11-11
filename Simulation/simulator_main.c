@@ -191,7 +191,7 @@ int main() {
                 
                 if (!is_paused) {
                     if (c == ' ') hard_drop = 1;
-                    if (c == 'z' || c == 'Z') hold = 1;
+                    if (c == 'c' || c == 'C') hold = 1;
                     
                     if (c == '\033') {
                         char seq[2];
