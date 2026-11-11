@@ -6,15 +6,24 @@ uint8_t board[BOARD_H][BOARD_W];
 int current_x = 4, current_y = 0;
 int current_piece = 0;
 int current_rotation = 0;
+int held_piece = -1;
+int next_piece = 1;
+int can_hold = 1;
+int game_over = 0;
+
+unsigned long long score = 0;
+unsigned long long high_score = 0;
+int level = 0;
+int total_lines = 0;
 
 const uint16_t pieces[7][4] = {
     {0x0F00, 0x2222, 0x00F0, 0x4444},
     {0x0660, 0x0660, 0x0660, 0x0660},
-    {0x0E40, 0x4C40, 0x4E00, 0x4640},
-    {0x0E80, 0xC440, 0x2E00, 0x44C0},
-    {0x0E20, 0x4460, 0x8E00, 0x6440},
-    {0x06C0, 0x8C40, 0x06C0, 0x8C40},
-    {0x0C60, 0x4C80, 0x0C60, 0x4C80}
+    {0x4E00, 0x4640, 0x0E40, 0x4C40},
+    {0x8E00, 0x6440, 0x0E20, 0x44C0},
+    {0x2E00, 0x4460, 0x0E80, 0xC440},
+    {0x6C00, 0x4620, 0x06C0, 0x8C40},
+    {0xC600, 0x2640, 0x0C60, 0x4C80}
 };
 
 void tetris_init(void) {
@@ -24,6 +33,19 @@ void tetris_init(void) {
             board[y][x] = 0;
         }
     }
+    
+    current_x = 4;
+    current_y = 0;
+    current_piece = 0;
+    current_rotation = 0;
+    next_piece = 1;
+    
+    held_piece = -1;
+    can_hold = 1;
+    score = 0;
+    level = 0;
+    total_lines = 0;
+    game_over = 0;
 }
 
 int check_collision(int px, int py, int r) {
@@ -58,6 +80,8 @@ void merge_piece(void) {
 
 void clear_lines(void) {
     int y, x, ty, tx;
+    int lines_cleared_now = 0;
+    
     for (y = BOARD_H - 1; y >= 0; y--) {
         int is_full = 1;
         for (x = 0; x < BOARD_W; x++) {
@@ -68,23 +92,57 @@ void clear_lines(void) {
         }
         
         if (is_full) {
-            /* Shift all rows above down by one */
+            lines_cleared_now++;
             for (ty = y; ty > 0; ty--) {
                 for (tx = 0; tx < BOARD_W; tx++) {
                     board[ty][tx] = board[ty - 1][tx];
                 }
             }
-            /* Clear the very top row */
             for (tx = 0; tx < BOARD_W; tx++) {
                 board[0][tx] = 0;
             }
-            /* Check this row index again since the row that fell down might also be full */
             y++; 
         }
     }
+    
+    if (lines_cleared_now > 0) {
+        total_lines += lines_cleared_now;
+        level = total_lines / 10;
+        
+        switch(lines_cleared_now) {
+            case 1: score += 40 * (level + 1); break;
+            case 2: score += 100 * (level + 1); break;
+            case 3: score += 300 * (level + 1); break;
+            case 4: score += 1200 * (level + 1); break;
+        }
+        if (score > high_score) high_score = score;
+    }
 }
 
-void tetris_update(int dx, int dy, int rotate) {
+void tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft_drop) {
+    if(game_over) return;
+
+    if(hold && can_hold) {
+        if(held_piece == -1) {
+            held_piece = current_piece;
+            current_piece = next_piece;
+            next_piece = (next_piece + 1) % 7;
+        } else {
+            int temp = current_piece;
+            current_piece = held_piece;
+            held_piece = temp;
+        }
+        current_x = 4;
+        current_y = 0;
+        current_rotation = 0;
+        can_hold = 0;
+        
+        if (check_collision(current_x, current_y, current_rotation)) {
+            game_over = 1;
+        }
+        return;
+    }
+
     int next_r = current_rotation;
     if(rotate) {
         next_r = (current_rotation + 1) % 4;
@@ -98,16 +156,49 @@ void tetris_update(int dx, int dy, int rotate) {
             current_x += dx;
         }
     }
-    
-    if(dy != 0) {
+
+    if(hard_drop) {
+        int cells_dropped = 0;
+        while(!check_collision(current_x, current_y + 1, current_rotation)) {
+            current_y++;
+            cells_dropped++;
+        }
+        score += (2 * cells_dropped);
+        if (score > high_score) high_score = score;
+        
+        merge_piece();
+        clear_lines();
+        current_y = 0;
+        current_x = 4;
+        current_piece = next_piece;
+        next_piece = (next_piece + 1) % 7;
+        current_rotation = 0;
+        can_hold = 1;
+
+        if (check_collision(current_x, current_y, current_rotation)) {
+            game_over = 1;
+        }
+    } 
+    else if(dy != 0) {
         if(!check_collision(current_x, current_y + 1, current_rotation)) {
             current_y++;
+            if (soft_drop) {
+                score += 1;
+                if (score > high_score) high_score = score;
+            }
         } else {
             merge_piece();
-            clear_lines(); /* Added line clearing check here */
+            clear_lines();
             current_y = 0;
             current_x = 4;
-            current_piece = (current_piece + 1) % 7;
+            current_piece = next_piece;
+            next_piece = (next_piece + 1) % 7;
+            current_rotation = 0;
+            can_hold = 1;
+
+            if (check_collision(current_x, current_y, current_rotation)) {
+                game_over = 1;
+            }
         }
     }
 }
@@ -122,11 +213,13 @@ void tetris_draw(void) {
         }
     }
     
-    uint16_t shape = pieces[current_piece][current_rotation];
-    for(y = 0; y < 4; y++) {
-        for(x = 0; x < 4; x++) {
-            if(shape & (1 << (15 - (y * 4 + x)))) {
-                display_draw_pixel((current_x + x) * 2, current_y + y, 1);
+    if (!game_over) {
+        uint16_t shape = pieces[current_piece][current_rotation];
+        for(y = 0; y < 4; y++) {
+            for(x = 0; x < 4; x++) {
+                if(shape & (1 << (15 - (y * 4 + x)))) {
+                    display_draw_pixel((current_x + x) * 2, current_y + y, 1);
+                }
             }
         }
     }
