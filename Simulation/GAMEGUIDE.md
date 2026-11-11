@@ -40,7 +40,7 @@ How to Build and Run
     
 3.  ./tetris\_sim
     
-4.  make clean
+4.  make clean (only if you want to clean up the compiled files)
     
 
 Controls
