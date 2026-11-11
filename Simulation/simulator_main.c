@@ -229,8 +229,8 @@ int main() {
 
         if (game_over) {
             if (!game_over_sound_played) {
-                sound_stop();                  // Stop background track
-                sound_play_game_over();        // Play GameOver.mp3 once
+                sound_stop();
+                sound_play_game_over();
                 game_over_sound_played = 1;
             }
         }
@@ -271,12 +271,102 @@ int main() {
             int old_rot = current_rotation;
             int old_piece = current_piece; 
             
-            int placed = tetris_update(dx, dy, rot, hard_drop, hold, soft_drop);
-            if (placed) {
-                sound_play_block_placed();
+            int action_performed = 0;
+            if(hold && can_hold) {
+                if(held_piece == -1) {
+                    held_piece = current_piece;
+                    current_piece = next_piece;
+                    next_piece = (next_piece + 1) % 7;
+                } else {
+                    int temp = current_piece;
+                    current_piece = held_piece;
+                    held_piece = temp;
+                }
+                current_x = 4;
+                current_y = 0;
+                current_rotation = 0;
+                can_hold = 0;
+                
+                if (check_collision(current_x, current_y, current_rotation)) {
+                    game_over = 1;
+                }
+                action_performed = 1;
+            } else {
+                int next_r = current_rotation;
+                if(rot) {
+                    next_r = (current_rotation + 1) % 4;
+                    if(!check_collision(current_x, current_y, next_r)) {
+                        current_rotation = next_r;
+                    }
+                }
+                
+                if(dx != 0) {
+                    if(!check_collision(current_x + dx, current_y, current_rotation)) {
+                        current_x += dx;
+                    }
+                }
+
+                if(hard_drop) {
+                    int cells_dropped = 0;
+                    while(!check_collision(current_x, current_y + 1, current_rotation)) {
+                        current_y++;
+                        cells_dropped++;
+                    }
+                    score += (2 * cells_dropped);
+                    if (score > high_score) high_score = score;
+                    
+                    merge_piece();
+                    int lines = clear_lines();
+                    if (lines > 0) {
+                        sound_play_clear_line();
+                    } else {
+                        sound_play_block_placed();
+                    }
+
+                    current_y = 0;
+                    current_x = 4;
+                    current_piece = next_piece;
+                    next_piece = (next_piece + 1) % 7;
+                    current_rotation = 0;
+                    can_hold = 1;
+
+                    if (check_collision(current_x, current_y, current_rotation)) {
+                        game_over = 1;
+                    }
+                    action_performed = 1;
+                } 
+                else if(dy != 0) {
+                    if(!check_collision(current_x, current_y + 1, current_rotation)) {
+                        current_y++;
+                        if (soft_drop) {
+                            score += 1;
+                            if (score > high_score) high_score = score;
+                        }
+                    } else {
+                        merge_piece();
+                        int lines = clear_lines();
+                        if (lines > 0) {
+                            sound_play_clear_line();
+                        } else {
+                            sound_play_block_placed();
+                        }
+
+                        current_y = 0;
+                        current_x = 4;
+                        current_piece = next_piece;
+                        next_piece = (next_piece + 1) % 7;
+                        current_rotation = 0;
+                        can_hold = 1;
+
+                        if (check_collision(current_x, current_y, current_rotation)) {
+                            game_over = 1;
+                        }
+                        action_performed = 1;
+                    }
+                }
             }
             
-            if (hard_drop || current_piece != old_piece) {
+            if (hard_drop || action_performed || current_piece != old_piece) {
                 last_drop = now;
                 lock_timer = 0;
                 current_lock_limit = 500;

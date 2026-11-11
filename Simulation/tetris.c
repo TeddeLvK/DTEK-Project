@@ -78,7 +78,7 @@ void merge_piece(void) {
     }
 }
 
-void clear_lines(void) {
+int clear_lines(void) {
     int y, x, ty, tx;
     int lines_cleared_now = 0;
     
@@ -117,93 +117,11 @@ void clear_lines(void) {
         }
         if (score > high_score) high_score = score;
     }
+    return lines_cleared_now;
 }
 
 int tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft_drop) {
-    if(game_over) return 0;
-
-    if(hold && can_hold) {
-        if(held_piece == -1) {
-            held_piece = current_piece;
-            current_piece = next_piece;
-            next_piece = (next_piece + 1) % 7;
-        } else {
-            int temp = current_piece;
-            current_piece = held_piece;
-            held_piece = temp;
-        }
-        current_x = 4;
-        current_y = 0;
-        current_rotation = 0;
-        can_hold = 0;
-        
-        if (check_collision(current_x, current_y, current_rotation)) {
-            game_over = 1;
-        }
-        return 0;
-    }
-
-    int next_r = current_rotation;
-    if(rotate) {
-        next_r = (current_rotation + 1) % 4;
-        if(!check_collision(current_x, current_y, next_r)) {
-            current_rotation = next_r;
-        }
-    }
-    
-    if(dx != 0) {
-        if(!check_collision(current_x + dx, current_y, current_rotation)) {
-            current_x += dx;
-        }
-    }
-
-    if(hard_drop) {
-        int cells_dropped = 0;
-        while(!check_collision(current_x, current_y + 1, current_rotation)) {
-            current_y++;
-            cells_dropped++;
-        }
-        score += (2 * cells_dropped);
-        if (score > high_score) high_score = score;
-        
-        merge_piece();
-        clear_lines();
-        current_y = 0;
-        current_x = 4;
-        current_piece = next_piece;
-        next_piece = (next_piece + 1) % 7;
-        current_rotation = 0;
-        can_hold = 1;
-
-        if (check_collision(current_x, current_y, current_rotation)) {
-            game_over = 1;
-        }
-        return 1; // Block placed
-    } 
-    else if(dy != 0) {
-        if(!check_collision(current_x, current_y + 1, current_rotation)) {
-            current_y++;
-            if (soft_drop) {
-                score += 1;
-                if (score > high_score) high_score = score;
-            }
-        } else {
-            merge_piece();
-            clear_lines();
-            current_y = 0;
-            current_x = 4;
-            current_piece = next_piece;
-            next_piece = (next_piece + 1) % 7;
-            current_rotation = 0;
-            can_hold = 1;
-
-            if (check_collision(current_x, current_y, current_rotation)) {
-                game_over = 1;
-            }
-            return 1; // Block placed
-        }
-    }
-    return 0;
+    return 0; /* Handled via helper execution inside main loop */
 }
 
 void tetris_draw(void) {

@@ -12,6 +12,7 @@ extern int current_piece;
 extern int current_rotation;
 extern int held_piece;
 extern int next_piece;
+extern int can_hold;
 extern const uint16_t pieces[7][4];
 
 extern unsigned long long score;
@@ -23,6 +24,8 @@ extern int game_over;
 void tetris_init(void);
 int tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft_drop);
 void tetris_draw(void);
+int clear_lines(void);
+void merge_piece(void);
 
 int check_collision(int px, int py, int r);
 
