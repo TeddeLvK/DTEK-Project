@@ -120,8 +120,76 @@ int clear_lines(void) {
     return lines_cleared_now;
 }
 
+int try_rotation(void) {
+    int next_r = (current_rotation + 1) % 4;
+    if (current_piece == 1) {
+        if (!check_collision(current_x, current_y, next_r)) {
+            current_rotation = next_r;
+            return 1;
+        }
+        return 0;
+    }
+
+    int kick_index = -1;
+    if (current_rotation == 0 && next_r == 1) kick_index = 0;
+    else if (current_rotation == 1 && next_r == 0) kick_index = 1;
+    else if (current_rotation == 1 && next_r == 2) kick_index = 2;
+    else if (current_rotation == 2 && next_r == 1) kick_index = 3;
+    else if (current_rotation == 2 && next_r == 3) kick_index = 4;
+    else if (current_rotation == 3 && next_r == 2) kick_index = 5;
+    else if (current_rotation == 3 && next_r == 0) kick_index = 6;
+    else if (current_rotation == 0 && next_r == 3) kick_index = 7;
+
+    static const int JLSTZ_kicks[8][5][2] = {
+        {{0,0}, {-1,0}, {-1,1}, {0,-2}, {-1,-2}},
+        {{0,0}, {1,0}, {1,-1}, {0,2}, {1,2}},
+        {{0,0}, {1,0}, {1,-1}, {0,2}, {1,2}},
+        {{0,0}, {-1,0}, {-1,1}, {0,-2}, {-1,-2}},
+        {{0,0}, {1,0}, {1,1}, {0,-2}, {1,-2}},
+        {{0,0}, {-1,0}, {-1,-1}, {0,2}, {-1,2}},
+        {{0,0}, {-1,0}, {-1,-1}, {0,2}, {-1,2}},
+        {{0,0}, {1,0}, {1,1}, {0,-2}, {1,-2}}
+    };
+
+    static const int I_kicks[8][5][2] = {
+        {{0,0}, {-2,0}, {1,0}, {-2,-1}, {1,2}},
+        {{0,0}, {2,0}, {-1,0}, {2,1}, {-1,-2}},
+        {{0,0}, {-1,0}, {2,0}, {-1,2}, {2,-1}},
+        {{0,0}, {1,0}, {-2,0}, {1,-2}, {-2,1}},
+        {{0,0}, {2,0}, {-1,0}, {2,1}, {-1,-2}},
+        {{0,0}, {-2,0}, {1,0}, {-2,-1}, {1,2}},
+        {{0,0}, {1,0}, {-2,0}, {1,-2}, {-2,1}},
+        {{0,0}, {-1,0}, {2,0}, {-1,2}, {2,-1}}
+    };
+
+    if (current_piece == 0) {
+        for(int i = 0; i < 5; i++) {
+            int kx = I_kicks[kick_index][i][0];
+            int ky = I_kicks[kick_index][i][1];
+            if (!check_collision(current_x + kx, current_y - ky, next_r)) {
+                current_x += kx;
+                current_y -= ky;
+                current_rotation = next_r;
+                return 1;
+            }
+        }
+    } else {
+        for(int i = 0; i < 5; i++) {
+            int kx = JLSTZ_kicks[kick_index][i][0];
+            int ky = JLSTZ_kicks[kick_index][i][1];
+            if (!check_collision(current_x + kx, current_y - ky, next_r)) {
+                current_x += kx;
+                current_y -= ky;
+                current_rotation = next_r;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 int tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft_drop) {
-    return 0; /* Handled via helper execution inside main loop */
+    return 0;
 }
 
 void tetris_draw(void) {

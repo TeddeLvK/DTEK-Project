@@ -77,10 +77,11 @@ void display_draw_pixel(int x, int y, int color) {
 void display_update(void) {
     printf("\e[H");
     
-    printf("  _____  ___  _____  ___  ___  ___ \r\n");
-    printf(" |_   _|| __||_   _|| _ \\|_ _|/ __|\r\n");
-    printf("   | |  | _|   | |  |   / | | \\__ \\\r\n");
-    printf("   |_|  |___|  |_|  |_|_\\|___||___/\r\n\r\n\r\n");
+    /* Centered TETRIS ASCII Art */
+    printf("      _____  ___  _____  ___  ___  ___ \r\n");
+    printf("     |_   _|| __||_   _|| _ \\|_ _|/ __|\r\n");
+    printf("       | |  | _|   | |  |   / | | \\__ \\\r\n");
+    printf("       |_|  |___|  |_|  |_|_\\|___||___/\r\n\r\n\r\n");
 
     for(int y = 0; y < BOARD_H; y++) {
         printf("|");
@@ -117,6 +118,28 @@ void display_update(void) {
             printf("|  Level: %-6d\e[K\r\n", level);
         } else if (y == 5) {
             printf("|  Lines: %-6d\e[K\r\n", total_lines);
+        } else if (y == 9) {
+            printf("|  ACTION      | KEY\e[K\r\n");
+        } else if (y == 10) {
+            printf("|  --------------------\e[K\r\n");
+        } else if (y == 11) {
+            printf("|  Move Left   | ←\e[K\r\n");
+        } else if (y == 12) {
+            printf("|  Move Right  | →\e[K\r\n");
+        } else if (y == 13) {
+            printf("|  Rotate      | ↑\e[K\r\n");
+        } else if (y == 14) {
+            printf("|  Soft Drop   | ↓\e[K\r\n");
+        } else if (y == 15) {
+            printf("|  Hard Drop   | SPC\e[K\r\n");
+        } else if (y == 16) {
+            printf("|  Hold Piece  | C\e[K\r\n");
+        } else if (y == 17) {
+            printf("|  Pause       | P\e[K\r\n");
+        } else if (y == 18) {
+            printf("|  Restart     | R\e[K\r\n");
+        } else if (y == 19) {
+            printf("|  Quit        | Q\e[K\r\n");
         } else {
             printf("|\e[K\r\n");
         }
@@ -292,12 +315,8 @@ int main() {
                 }
                 action_performed = 1;
             } else {
-                int next_r = current_rotation;
                 if(rot) {
-                    next_r = (current_rotation + 1) % 4;
-                    if(!check_collision(current_x, current_y, next_r)) {
-                        current_rotation = next_r;
-                    }
+                    try_rotation();
                 }
                 
                 if(dx != 0) {
