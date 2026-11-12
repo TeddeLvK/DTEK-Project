@@ -37,7 +37,7 @@ void show_start_menu(void)
             printf("\e[K\r\n");
         }
 
-        printf(" WELCOME TO THEODOR'S AND JEN'S DTEK PROJEKT\e[K\r\n");
+        printf(" WELCOME TO THEODOR'S AND JENS'S DTEK PROJEKT\e[K\r\n");
 
         for (int i = bounce_y; i < max_bounce; i++)
         {
