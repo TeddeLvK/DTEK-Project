@@ -6,6 +6,7 @@
 #include "sound.h"
 
 static pid_t audio_pid = -1;
+static int is_muted = 0;
 
 void sound_stop(void) {
     if (audio_pid > 0) {
@@ -17,6 +18,7 @@ void sound_stop(void) {
 
 void sound_start(void) {
     sound_stop();
+    if (is_muted) return;
     
     audio_pid = fork();
     if (audio_pid == 0) {
@@ -45,12 +47,27 @@ void sound_pause(void) {
 }
 
 void sound_resume(void) {
+    if (is_muted) return;
     if (audio_pid > 0) {
         kill(-audio_pid, SIGCONT);
     }
 }
 
+void sound_toggle_mute(void) {
+    is_muted = !is_muted;
+    if (is_muted) {
+        sound_stop();
+    } else {
+        sound_start();
+    }
+}
+
+int sound_is_muted(void) {
+    return is_muted;
+}
+
 void sound_play_block_placed(void) {
+    if (is_muted) return;
     pid_t pid = fork();
     if (pid == 0) {
         execlp("afplay", "afplay", "../Assets/BlockPlaced.mp3", NULL);
@@ -59,6 +76,7 @@ void sound_play_block_placed(void) {
 }
 
 void sound_play_clear_line(void) {
+    if (is_muted) return;
     pid_t pid = fork();
     if (pid == 0) {
         execlp("afplay", "afplay", "../Assets/ClearLine.mp3", NULL);
@@ -67,6 +85,7 @@ void sound_play_clear_line(void) {
 }
 
 void sound_play_game_over(void) {
+    if (is_muted) return;
     pid_t pid = fork();
     if (pid == 0) {
         execlp("afplay", "afplay", "../Assets/GameOver.mp3", NULL);

@@ -25,6 +25,39 @@ const uint16_t pieces[7][4] = {
     {0xC600, 0x2640, 0x0C60, 0x4C80}
 };
 
+/* Embedded PRNG for Bare-Metal */
+static uint32_t rand_state = 123456789;
+
+void tetris_seed(uint32_t seed) {
+    if (seed == 0) seed = 1;
+    rand_state = seed;
+}
+
+static uint32_t get_rand(void) {
+    rand_state = (1103515245 * rand_state + 12345);
+    return (rand_state >> 16) & 0x7FFF;
+}
+
+/* 7-Bag Randomizer */
+static int piece_bag[7];
+static int bag_index = 7;
+
+void shuffle_bag(void) {
+    for (int i = 0; i < 7; i++) piece_bag[i] = i;
+    for (int i = 6; i > 0; i--) {
+        int j = get_rand() % (i + 1);
+        int temp = piece_bag[i];
+        piece_bag[i] = piece_bag[j];
+        piece_bag[j] = temp;
+    }
+    bag_index = 0;
+}
+
+int get_random_piece(void) {
+    if (bag_index >= 7) shuffle_bag();
+    return piece_bag[bag_index++];
+}
+
 void tetris_init(void) {
     int x, y;
     for(y = 0; y < BOARD_H; y++) {
@@ -32,11 +65,14 @@ void tetris_init(void) {
             board[y][x] = 0;
         }
     }
+    
+    bag_index = 7;
+    current_piece = get_random_piece();
+    next_piece = get_random_piece();
+    
     current_x = 4;
     current_y = 0;
-    current_piece = 0;
     current_rotation = 0;
-    next_piece = 1;
     held_piece = -1;
     can_hold = 1;
     score = 0;

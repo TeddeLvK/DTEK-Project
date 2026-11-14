@@ -1,4 +1,6 @@
 #include "tetris.h"
+#include <stdlib.h>
+#include <time.h>
 
 extern void display_draw_pixel(int x, int y, int color);
 
@@ -26,7 +28,33 @@ const uint16_t pieces[7][4] = {
     {0xC600, 0x2640, 0x0C60, 0x4C80}
 };
 
+/* 7-Bag Randomizer Variables */
+static int piece_bag[7];
+static int bag_index = 7;
+
+void shuffle_bag(void) {
+    for (int i = 0; i < 7; i++) piece_bag[i] = i;
+    for (int i = 6; i > 0; i--) {
+        int j = rand() % (i + 1);
+        int temp = piece_bag[i];
+        piece_bag[i] = piece_bag[j];
+        piece_bag[j] = temp;
+    }
+    bag_index = 0;
+}
+
+int get_random_piece(void) {
+    if (bag_index >= 7) shuffle_bag();
+    return piece_bag[bag_index++];
+}
+
 void tetris_init(void) {
+    static int seeded = 0;
+    if (!seeded) {
+        srand(time(NULL));
+        seeded = 1;
+    }
+    
     int x, y;
     for(y = 0; y < BOARD_H; y++) {
         for(x = 0; x < BOARD_W; x++) {
@@ -34,12 +62,13 @@ void tetris_init(void) {
         }
     }
     
+    bag_index = 7; /* Force a fresh bag on restart */
+    current_piece = get_random_piece();
+    next_piece = get_random_piece();
+    
     current_x = 4;
     current_y = 0;
-    current_piece = 0;
     current_rotation = 0;
-    next_piece = 1;
-    
     held_piece = -1;
     can_hold = 1;
     score = 0;

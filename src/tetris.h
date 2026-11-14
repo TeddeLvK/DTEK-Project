@@ -21,12 +21,16 @@ extern int level;
 extern int total_lines;
 extern int game_over;
 
+void tetris_seed(uint32_t seed);
+int get_random_piece(void);
+
 void tetris_init(void);
 int tetris_update(int dx, int dy, int rotate, int hard_drop, int hold, int soft_drop);
 void tetris_draw(void);
 int clear_lines(void);
 void merge_piece(void);
 int try_rotation(void);
+
 int check_collision(int px, int py, int r);
 
 #endif

@@ -118,24 +118,26 @@ void display_update(void) {
             printf("|  Level: %-6d\e[K\r\n", level);
         } else if (y == 5) {
             printf("|  Lines: %-6d\e[K\r\n", total_lines);
-        } else if (y == 9) {
+        } else if (y == 8) {
             printf("|  ACTION      | KEY\e[K\r\n");
-        } else if (y == 10) {
+        } else if (y == 9) {
             printf("|  --------------------\e[K\r\n");
-        } else if (y == 11) {
+        } else if (y == 10) {
             printf("|  Move Left   | ←\e[K\r\n");
-        } else if (y == 12) {
+        } else if (y == 11) {
             printf("|  Move Right  | →\e[K\r\n");
-        } else if (y == 13) {
+        } else if (y == 12) {
             printf("|  Rotate      | ↑\e[K\r\n");
-        } else if (y == 14) {
+        } else if (y == 13) {
             printf("|  Soft Drop   | ↓\e[K\r\n");
-        } else if (y == 15) {
+        } else if (y == 14) {
             printf("|  Hard Drop   | SPC\e[K\r\n");
-        } else if (y == 16) {
+        } else if (y == 15) {
             printf("|  Hold Piece  | C\e[K\r\n");
-        } else if (y == 17) {
+        } else if (y == 16) {
             printf("|  Pause       | P\e[K\r\n");
+        } else if (y == 17) {
+            printf("|  Mute        | M\e[K\r\n");
         } else if (y == 18) {
             printf("|  Restart     | R\e[K\r\n");
         } else if (y == 19) {
@@ -167,6 +169,16 @@ void display_update(void) {
             if (n_shape & (1 << (15 - (y * 4 + x)))) printf("[]");
             else printf("  ");
         }
+        
+        /* Audio Indicator at the bottom right of the UI */
+        if (y == 3) {
+            if (sound_is_muted()) {
+                printf("           [ Audio: OFF ]");
+            } else {
+                printf("           [ Audio: ON  ]");
+            }
+        }
+        
         printf("\e[K\r\n");
     }
     fflush(stdout);
@@ -201,6 +213,9 @@ int main() {
             if (c == 'q' || c == 'Q') {
                 sound_stop();
                 break;
+            }
+            if (c == 'm' || c == 'M') {
+                sound_toggle_mute();
             }
             
             if (game_over) {
@@ -299,7 +314,7 @@ int main() {
                 if(held_piece == -1) {
                     held_piece = current_piece;
                     current_piece = next_piece;
-                    next_piece = (next_piece + 1) % 7;
+                    next_piece = get_random_piece();
                 } else {
                     int temp = current_piece;
                     current_piece = held_piece;
@@ -345,7 +360,7 @@ int main() {
                     current_y = 0;
                     current_x = 4;
                     current_piece = next_piece;
-                    next_piece = (next_piece + 1) % 7;
+                    next_piece = get_random_piece();
                     current_rotation = 0;
                     can_hold = 1;
 
@@ -373,7 +388,7 @@ int main() {
                         current_y = 0;
                         current_x = 4;
                         current_piece = next_piece;
-                        next_piece = (next_piece + 1) % 7;
+                        next_piece = get_random_piece();
                         current_rotation = 0;
                         can_hold = 1;
 

@@ -27,6 +27,7 @@ void tetris_draw(void);
 int clear_lines(void);
 void merge_piece(void);
 int try_rotation(void);
+int get_random_piece(void);
 
 int check_collision(int px, int py, int r);
 
