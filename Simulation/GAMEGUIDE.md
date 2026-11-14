@@ -62,6 +62,8 @@ Controls
 
 **Pause Game** = P
 
+**Mute/Unmute** = M
+
 **Restart Game** = R (When game over)
 
 **Quit Game** = Q
