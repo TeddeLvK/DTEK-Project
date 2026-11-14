@@ -77,11 +77,14 @@ void display_draw_pixel(int x, int y, int color) {
 void display_update(void) {
     printf("\e[H");
     
-    /* Centered TETRIS ASCII Art */
-    printf("      _____  ___  _____  ___  ___  ___ \r\n");
-    printf("     |_   _|| __||_   _|| _ \\|_ _|/ __|\r\n");
-    printf("       | |  | _|   | |  |   / | | \\__ \\\r\n");
-    printf("       |_|  |___|  |_|  |_|_\\|___||___/\r\n\r\n\r\n");
+    /* Added \e[K to clear line artifacts during horizontal resize */
+    printf("      _____  ___  _____  ___  ___  ___ \e[K\r\n");
+    printf("     |_   _|| __||_   _|| _ \\|_ _|/ __|\e[K\r\n");
+    printf("       | |  | _|   | |  |   / | | \\__ \\\e[K\r\n");
+    printf("       |_|  |___|  |_|  |_|_\\|___||___/\e[K\r\n");
+    printf("          By Theodor LvK and Jens F\e[K\r\n");
+    printf("\e[K\r\n");
+    printf("\e[K\r\n");
 
     for(int y = 0; y < BOARD_H; y++) {
         printf("|");
@@ -137,7 +140,7 @@ void display_update(void) {
         } else if (y == 16) {
             printf("|  Pause       | P\e[K\r\n");
         } else if (y == 17) {
-            printf("|  Mute        | M\e[K\r\n");
+            printf("|  Mute/Unmute | M\e[K\r\n");
         } else if (y == 18) {
             printf("|  Restart     | R\e[K\r\n");
         } else if (y == 19) {
@@ -170,7 +173,6 @@ void display_update(void) {
             else printf("  ");
         }
         
-        /* Audio Indicator at the bottom right of the UI */
         if (y == 3) {
             if (sound_is_muted()) {
                 printf("           [ Audio: OFF ]");
@@ -179,8 +181,16 @@ void display_update(void) {
             }
         }
         
-        printf("\e[K\r\n");
+        /* Stop scrolling by dropping \r\n on the absolute last line */
+        if (y < 3) {
+            printf("\e[K\r\n");
+        } else {
+            printf("\e[K"); 
+        }
     }
+    
+    /* Clears any leftover lines below the game if the window is resized larger */
+    printf("\e[J"); 
     fflush(stdout);
 }
 
@@ -425,5 +435,10 @@ int main() {
 
         usleep(16000);
     }
+
+    /* Clean exit to prevent the Zsh '%' artifact */
+    printf("\e[2J\e[H"); 
+    fflush(stdout);
+
     return 0;
 }

@@ -3,6 +3,7 @@
 #include "display.h"
 #include "menu.h"
 
+#define UART_REG (*(volatile uint32_t *)0x40000004)
 #define BUTTON_REG (*(volatile uint32_t *)0x40000000)
 
 #define BTN_LEFT   (1 << 0)
@@ -12,6 +13,21 @@
 #define BTN_DROP   (1 << 4)
 #define BTN_HOLD   (1 << 5)
 #define BTN_START  (1 << 6)
+
+void print_credits_to_terminal(void) {
+    const char* str = 
+        "\033[2J\033[H"
+        "      _____  ___  _____  ___  ___  ___ \r\n"
+        "     |_   _|| __||_   _|| _ \\|_ _|/ __|\r\n"
+        "       | |  | _|   | |  |   / | | \\__ \\\r\n"
+        "       |_|  |___|  |_|  |_|_\\|___||___/\r\n"
+        "\r\n\r\n\r\n\r\n" /* Blank spaces */
+        "          By Theodor LvK and Jens F\r\n\r\n\r\n"
+        "          [GAME IS RUNNING ON MONITOR]\r\n";
+    while (*str) {
+        UART_REG = *str++;
+    }
+}
 
 long long get_time_ms(void) {
     uint32_t cycles_low, cycles_high;
@@ -30,6 +46,8 @@ int main(void) {
     
     show_start_menu();
     
+    print_credits_to_terminal();
+    
     long long last_drop = get_time_ms();
     long long lock_timer = 0; 
     int current_lock_limit = 500; 
@@ -45,6 +63,10 @@ int main(void) {
 
         if (game_over) {
             if (btns_pressed & BTN_START) {
+                uint32_t hw_seed;
+                __asm__ volatile("rdcycle %0" : "=r" (hw_seed));
+                tetris_seed(hw_seed);
+                
                 tetris_init();
                 last_drop = get_time_ms();
                 lock_timer = 0;
@@ -96,7 +118,7 @@ int main(void) {
                 if(held_piece == -1) {
                     held_piece = current_piece;
                     current_piece = next_piece;
-                    next_piece = (next_piece + 1) % 7;
+                    next_piece = get_random_piece();
                 } else {
                     int temp = current_piece;
                     current_piece = held_piece;
@@ -137,7 +159,7 @@ int main(void) {
                     current_y = 0;
                     current_x = 4;
                     current_piece = next_piece;
-                    next_piece = (next_piece + 1) % 7;
+                    next_piece = get_random_piece();
                     current_rotation = 0;
                     can_hold = 1;
 
@@ -160,7 +182,7 @@ int main(void) {
                         current_y = 0;
                         current_x = 4;
                         current_piece = next_piece;
-                        next_piece = (next_piece + 1) % 7;
+                        next_piece = get_random_piece();
                         current_rotation = 0;
                         can_hold = 1;
 
