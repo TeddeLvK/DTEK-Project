@@ -41,16 +41,12 @@ void sound_start(void) {
 }
 
 void sound_pause(void) {
-    if (audio_pid > 0) {
-        kill(-audio_pid, SIGSTOP);
-    }
+    sound_stop();
 }
 
 void sound_resume(void) {
     if (is_muted) return;
-    if (audio_pid > 0) {
-        kill(-audio_pid, SIGCONT);
-    }
+    sound_start();
 }
 
 void sound_toggle_mute(void) {
