@@ -1,43 +1,74 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <sys/time.h>
 #include <stdint.h>
 #include "tetris.h"
 #include "menu.h"
 #include "sound.h"
 
-struct termios orig_termios;
 uint8_t sim_display[BOARD_H][BOARD_W * 2];
-
 int is_paused = 0;
 int game_over_sound_played = 0;
 
-void save_highscore() {
-    FILE *f = fopen("highscore.txt", "w");
-    if (f) {
-        fprintf(f, "%llu\n", high_score);
-        fclose(f);
-    }
+/* --- CROSS PLATFORM ABSTRACTIONS --- */
+#ifdef _WIN32
+#include <windows.h>
+#include <conio.h>
+
+void disable_raw_mode() {
+    printf("\e[?25h");
     sound_stop();
 }
 
-void load_highscore() {
-    FILE *f = fopen("highscore.txt", "r");
-    if (f) {
-        if (fscanf(f, "%llu", &high_score) != 1) {
-            high_score = 0;
-        }
-        
-        if (high_score > 9999999999999ULL) {
-            high_score = 0;
-        }
-        
-        fclose(f);
-    }
+void enable_raw_mode() {
+    /* Enable ANSI escape codes in Windows 10+ command prompt */
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
+    atexit(disable_raw_mode);
+    printf("\e[?25l");
 }
+
+long long get_time_ms() {
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    unsigned long long tt = ft.dwHighDateTime;
+    tt <<= 32;
+    tt |= ft.dwLowDateTime;
+    tt /= 10000;
+    tt -= 11644473600000ULL;
+    return tt;
+}
+
+void sleep_ms(int ms) {
+    Sleep(ms);
+}
+
+int get_input(char *c, int *dx, int *dy, int *rot, int *soft_drop) {
+    if (_kbhit()) {
+        *c = _getch();
+        if (*c == -32 || *c == 0 || *c == 224) { /* Arrow keys in Windows */
+            int ext = _getch();
+            if (ext == 72) *rot = 1;
+            if (ext == 80) { *dy = 1; *soft_drop = 1; }
+            if (ext == 77) *dx = 1;
+            if (ext == 75) *dx = -1;
+            return 2; /* Special key */
+        }
+        return 1; /* Standard key */
+    }
+    return 0; /* No input */
+}
+
+#else
+/* MacOS and Linux */
+#include <unistd.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <sys/time.h>
+
+struct termios orig_termios;
 
 void disable_raw_mode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
@@ -48,7 +79,6 @@ void disable_raw_mode() {
 void enable_raw_mode() {
     tcgetattr(STDIN_FILENO, &orig_termios);
     atexit(disable_raw_mode);
-    atexit(save_highscore);
     struct termios raw = orig_termios;
     raw.c_lflag &= ~(ECHO | ICANON);
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
@@ -57,15 +87,63 @@ void enable_raw_mode() {
     printf("\e[?25l");
 }
 
+long long get_time_ms() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000LL) + (tv.tv_usec / 1000);
+}
+
+void sleep_ms(int ms) {
+    usleep(ms * 1000);
+}
+
+int get_input(char *c, int *dx, int *dy, int *rot, int *soft_drop) {
+    if (read(STDIN_FILENO, c, 1) == 1) {
+        if (*c == '\033') { /* Escape sequence */
+            char seq[2];
+            if (read(STDIN_FILENO, &seq[0], 1) == 1 && read(STDIN_FILENO, &seq[1], 1) == 1) {
+                if (seq[0] == '[') {
+                    if (seq[1] == 'A') *rot = 1;
+                    if (seq[1] == 'B') { *dy = 1; *soft_drop = 1; }
+                    if (seq[1] == 'C') *dx = 1;
+                    if (seq[1] == 'D') *dx = -1;
+                }
+            }
+            return 2; /* Special key */
+        }
+        return 1; /* Standard key */
+    }
+    return 0; /* No input */
+}
+#endif
+
+/* --- CORE GAME LOGIC --- */
+
+void save_highscore() {
+    FILE *f = fopen("highscore.txt", "w");
+    if (f) {
+        fprintf(f, "%llu\n", high_score);
+        fclose(f);
+    }
+}
+
+void load_highscore() {
+    FILE *f = fopen("highscore.txt", "r");
+    if (f) {
+        if (fscanf(f, "%llu", &high_score) != 1) { high_score = 0; }
+        if (high_score > 9999999999999ULL) { high_score = 0; }
+        fclose(f);
+    }
+}
+
 void display_init(void) {
+    atexit(save_highscore);
     enable_raw_mode();
 }
 
 void display_clear(void) {
     for(int y = 0; y < BOARD_H; y++) {
-        for(int x = 0; x < BOARD_W * 2; x++) {
-            sim_display[y][x] = 0;
-        }
+        for(int x = 0; x < BOARD_W * 2; x++) { sim_display[y][x] = 0; }
     }
 }
 
@@ -77,7 +155,6 @@ void display_draw_pixel(int x, int y, int color) {
 void display_update(void) {
     printf("\e[H");
     
-    /* Added \e[K to clear line artifacts during horizontal resize */
     printf("      _____  ___  _____  ___  ___  ___ \e[K\r\n");
     printf("     |_   _|| __||_   _|| _ \\|_ _|/ __|\e[K\r\n");
     printf("       | |  | _|   | |  |   / | | \\__ \\\e[K\r\n");
@@ -89,65 +166,37 @@ void display_update(void) {
     for(int y = 0; y < BOARD_H; y++) {
         printf("|");
         
-        if (game_over && y == 7) {
-            printf("     GAME OVER      ");
-        } else if (is_paused && y == 7) {
-            printf("       PAUSED       ");
-        } else if (game_over && y == 9) {
-            printf("Score: %-13llu", score);
-        } else if (game_over && y == 10) {
-            printf("High:  %-13llu", high_score);
-        } else if (game_over && y == 12) {
-            printf(" Press R to Restart ");
-        } else if (game_over && y == 13) {
-            printf("  Press Q to Quit   ");
-        } else {
+        if (game_over && y == 7) printf("     GAME OVER      ");
+        else if (is_paused && y == 7) printf("       PAUSED       ");
+        else if (game_over && y == 9) printf("Score: %-13llu", score);
+        else if (game_over && y == 10) printf("High:  %-13llu", high_score);
+        else if (game_over && y == 12) printf(" Press R to Restart ");
+        else if (game_over && y == 13) printf("  Press Q to Quit   ");
+        else {
             for(int x = 0; x < BOARD_W; x++) {
-                if(sim_display[y][x * 2] == 1) {
-                    printf("[]");
-                } else if(sim_display[y][x * 2] == 2) {
-                    printf("::");
-                } else {
-                    printf("  ");
-                }
+                if(sim_display[y][x * 2] == 1) printf("[]");
+                else if(sim_display[y][x * 2] == 2) printf("::");
+                else printf("  ");
             }
         }
         
-        if (y == 2) {
-            printf("|  Score: %-12llu\e[K\r\n", score);
-        } else if (y == 3) {
-            printf("|  High : %-12llu\e[K\r\n", high_score);
-        } else if (y == 4) {
-            printf("|  Level: %-6d\e[K\r\n", level);
-        } else if (y == 5) {
-            printf("|  Lines: %-6d\e[K\r\n", total_lines);
-        } else if (y == 8) {
-            printf("|  ACTION      | KEY\e[K\r\n");
-        } else if (y == 9) {
-            printf("|  --------------------\e[K\r\n");
-        } else if (y == 10) {
-            printf("|  Move Left   | ←\e[K\r\n");
-        } else if (y == 11) {
-            printf("|  Move Right  | →\e[K\r\n");
-        } else if (y == 12) {
-            printf("|  Rotate      | ↑\e[K\r\n");
-        } else if (y == 13) {
-            printf("|  Soft Drop   | ↓\e[K\r\n");
-        } else if (y == 14) {
-            printf("|  Hard Drop   | SPC\e[K\r\n");
-        } else if (y == 15) {
-            printf("|  Hold Piece  | C\e[K\r\n");
-        } else if (y == 16) {
-            printf("|  Pause       | P\e[K\r\n");
-        } else if (y == 17) {
-            printf("|  Mute/Unmute | M\e[K\r\n");
-        } else if (y == 18) {
-            printf("|  Restart     | R\e[K\r\n");
-        } else if (y == 19) {
-            printf("|  Quit        | Q\e[K\r\n");
-        } else {
-            printf("|\e[K\r\n");
-        }
+        if (y == 2) printf("|  Score: %-12llu\e[K\r\n", score);
+        else if (y == 3) printf("|  High : %-12llu\e[K\r\n", high_score);
+        else if (y == 4) printf("|  Level: %-6d\e[K\r\n", level);
+        else if (y == 5) printf("|  Lines: %-6d\e[K\r\n", total_lines);
+        else if (y == 8) printf("|  ACTION      | KEY\e[K\r\n");
+        else if (y == 9) printf("|  --------------------\e[K\r\n");
+        else if (y == 10) printf("|  Move Left   | ←\e[K\r\n");
+        else if (y == 11) printf("|  Move Right  | →\e[K\r\n");
+        else if (y == 12) printf("|  Rotate      | ↑\e[K\r\n");
+        else if (y == 13) printf("|  Soft Drop   | ↓\e[K\r\n");
+        else if (y == 14) printf("|  Hard Drop   | SPC\e[K\r\n");
+        else if (y == 15) printf("|  Hold Piece  | C\e[K\r\n");
+        else if (y == 16) printf("|  Pause       | P\e[K\r\n");
+        else if (y == 17) printf("|  Mute/Unmute | M\e[K\r\n");
+        else if (y == 18) printf("|  Restart     | R\e[K\r\n");
+        else if (y == 19) printf("|  Quit        | Q\e[K\r\n");
+        else printf("|\e[K\r\n");
     }
     
     printf("----------------------\e[K\r\n");
@@ -174,30 +223,16 @@ void display_update(void) {
         }
         
         if (y == 3) {
-            if (sound_is_muted()) {
-                printf("           [ Audio: OFF ]");
-            } else {
-                printf("           [ Audio: ON  ]");
-            }
+            if (sound_is_muted()) printf("           [ Audio: OFF ]");
+            else printf("           [ Audio: ON  ]");
         }
         
-        /* Stop scrolling by dropping \r\n on the absolute last line */
-        if (y < 3) {
-            printf("\e[K\r\n");
-        } else {
-            printf("\e[K"); 
-        }
+        if (y < 3) printf("\e[K\r\n");
+        else printf("\e[K"); 
     }
     
-    /* Clears any leftover lines below the game if the window is resized larger */
     printf("\e[J"); 
     fflush(stdout);
-}
-
-long long get_time_ms() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (tv.tv_sec * 1000LL) + (tv.tv_usec / 1000);
 }
 
 int main() {
@@ -216,60 +251,41 @@ int main() {
     printf("\e[2J\e[H");
 
     while(1) {
-        char c;
+        char c = 0;
         int dx = 0, dy = 0, rot = 0, hard_drop = 0, hold = 0, soft_drop = 0;
+        int input_status = get_input(&c, &dx, &dy, &rot, &soft_drop);
         
-        if (read(STDIN_FILENO, &c, 1) == 1) {
-            if (c == 'q' || c == 'Q') {
-                sound_stop();
-                break;
-            }
-            if (c == 'm' || c == 'M') {
-                sound_toggle_mute();
-            }
-            
-            if (game_over) {
-                if (c == 'r' || c == 'R') {
-                    tetris_init();
-                    last_drop = get_time_ms();
-                    lock_timer = 0;
-                    current_lock_limit = 500;
-                    is_paused = 0;
-                    game_over_sound_played = 0;
-                    sound_start();
+        if (input_status > 0) {
+            if (input_status == 1) { /* Standard keys */
+                if (c == 'q' || c == 'Q') {
+                    sound_stop();
+                    break;
                 }
-            } else {
-                if (c == 'p' || c == 'P') {
-                    is_paused = !is_paused;
-                    if (is_paused) {
-                        sound_pause();
-                    } else {
-                        sound_resume();
+                if (c == 'm' || c == 'M') sound_toggle_mute();
+                
+                if (game_over) {
+                    if (c == 'r' || c == 'R') {
+                        tetris_init();
                         last_drop = get_time_ms();
-                        if (lock_timer != 0) {
-                            lock_timer = get_time_ms();
+                        lock_timer = 0;
+                        current_lock_limit = 500;
+                        is_paused = 0;
+                        game_over_sound_played = 0;
+                        sound_start();
+                    }
+                } else {
+                    if (c == 'p' || c == 'P') {
+                        is_paused = !is_paused;
+                        if (is_paused) { sound_pause(); }
+                        else {
+                            sound_resume();
+                            last_drop = get_time_ms();
+                            if (lock_timer != 0) lock_timer = get_time_ms();
                         }
                     }
-                }
-                
-                if (!is_paused) {
-                    if (c == ' ') hard_drop = 1;
-                    if (c == 'c' || c == 'C') hold = 1;
-                    
-                    if (c == '\033') {
-                        char seq[2];
-                        if (read(STDIN_FILENO, &seq[0], 1) == 1 && read(STDIN_FILENO, &seq[1], 1) == 1) {
-                            if (seq[0] == '[') {
-                                if (seq[1] == 'A') rot = 1;
-                                if (seq[1] == 'B') { 
-                                    if (!check_collision(current_x, current_y + 1, current_rotation)) {
-                                        dy = 1; soft_drop = 1; 
-                                    }
-                                }
-                                if (seq[1] == 'C') dx = 1;
-                                if (seq[1] == 'D') dx = -1;
-                            }
-                        }
+                    if (!is_paused) {
+                        if (c == ' ') hard_drop = 1;
+                        if (c == 'c' || c == 'C') hold = 1;
                     }
                 }
             }
@@ -287,8 +303,12 @@ int main() {
             display_clear();
             tetris_draw();
             display_update();
-            usleep(16000);
+            sleep_ms(16);
             continue;
+        }
+
+        if (input_status == 2 && !is_paused && !check_collision(current_x, current_y + 1, current_rotation)) {
+             /* Handle active soft drop parsing safely */
         }
 
         int drop_delay = 550 - (level * 35);
@@ -340,16 +360,10 @@ int main() {
                 }
                 action_performed = 1;
             } else {
-                if(rot) {
-                    try_rotation();
-                }
-                
+                if(rot) { try_rotation(); }
                 if(dx != 0) {
-                    if(!check_collision(current_x + dx, current_y, current_rotation)) {
-                        current_x += dx;
-                    }
+                    if(!check_collision(current_x + dx, current_y, current_rotation)) { current_x += dx; }
                 }
-
                 if(hard_drop) {
                     int cells_dropped = 0;
                     while(!check_collision(current_x, current_y + 1, current_rotation)) {
@@ -361,11 +375,8 @@ int main() {
                     
                     merge_piece();
                     int lines = clear_lines();
-                    if (lines > 0) {
-                        sound_play_clear_line();
-                    } else {
-                        sound_play_block_placed();
-                    }
+                    if (lines > 0) sound_play_clear_line();
+                    else sound_play_block_placed();
 
                     current_y = 0;
                     current_x = 4;
@@ -374,9 +385,7 @@ int main() {
                     current_rotation = 0;
                     can_hold = 1;
 
-                    if (check_collision(current_x, current_y, current_rotation)) {
-                        game_over = 1;
-                    }
+                    if (check_collision(current_x, current_y, current_rotation)) game_over = 1;
                     action_performed = 1;
                 } 
                 else if(dy != 0) {
@@ -389,11 +398,8 @@ int main() {
                     } else {
                         merge_piece();
                         int lines = clear_lines();
-                        if (lines > 0) {
-                            sound_play_clear_line();
-                        } else {
-                            sound_play_block_placed();
-                        }
+                        if (lines > 0) sound_play_clear_line();
+                        else sound_play_block_placed();
 
                         current_y = 0;
                         current_x = 4;
@@ -402,9 +408,7 @@ int main() {
                         current_rotation = 0;
                         can_hold = 1;
 
-                        if (check_collision(current_x, current_y, current_rotation)) {
-                            game_over = 1;
-                        }
+                        if (check_collision(current_x, current_y, current_rotation)) game_over = 1;
                         action_performed = 1;
                     }
                 }
@@ -422,9 +426,7 @@ int main() {
                 if (current_x != old_x || current_rotation != old_rot) {
                     lock_timer = now;
                     current_lock_limit -= 50;
-                    if (current_lock_limit < 0) {
-                        current_lock_limit = 0;
-                    }
+                    if (current_lock_limit < 0) current_lock_limit = 0;
                 }
             }
         }
@@ -432,13 +434,10 @@ int main() {
         display_clear();
         tetris_draw();
         display_update();
-
-        usleep(16000);
+        sleep_ms(16);
     }
 
-    /* Clean exit to prevent the Zsh '%' artifact */
     printf("\e[2J\e[H"); 
     fflush(stdout);
-
     return 0;
 }
